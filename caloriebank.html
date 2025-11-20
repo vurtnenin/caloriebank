@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CalorieBank V3.2</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & Babel 配置 -->
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@18.2.0",
+            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+            "lucide-react": "https://esm.sh/lucide-react@0.292.0"
+        }
+    }
+    </script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        /* 隐藏滚动条但允许滚动 */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* iOS 安全区域适配 */
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        import React, { useState, useMemo, useEffect } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { Search, Zap, Info, Plus, X, ChevronUp, Trash2, ShoppingBag, Save, PieChart, Activity, Target, Calendar, ChevronLeft, ChevronRight, User, Landmark, Ruler, Weight, Settings } from 'lucide-react';
+
+        // --- 数据库 (完整版) ---
+        const initialFoodDatabase = [
+            // === 主食类 ===
+            { id: 1, name: '白米饭', icon: '🍚', calories: 116, protein: 2.6, fat: 0.3, carbs: 25.9, category: '主食', gi: 83 },
+            { id: 2, name: '馒头', icon: '🥯', calories: 223, protein: 7.0, fat: 1.1, carbs: 47.0, category: '主食', gi: 88 },
+            { id: 3, name: '小米粥', icon: '🥣', calories: 46, protein: 1.4, fat: 0.7, carbs: 8.4, category: '主食', gi: 60 },
+            { id: 4, name: '油条', icon: '🥖', calories: 388, protein: 6.9, fat: 17.6, carbs: 51.0, category: '主食', gi: 75 },
+            { id: 5, name: '煮玉米', icon: '🌽', calories: 112, protein: 4.0, fat: 1.2, carbs: 22.8, category: '主食', gi: 55 },
+            { id: 6, name: '全麦面包', icon: '🍞', calories: 246, protein: 8.5, fat: 3.4, carbs: 45.0, category: '主食', gi: 50 },
+            { id: 7, name: '面条(煮)', icon: '🍜', calories: 110, protein: 4.0, fat: 0.5, carbs: 23.0, category: '主食', gi: 55 },
+            { id: 8, name: '水饺(猪肉)', icon: '🥟', calories: 240, protein: 9.0, fat: 12.0, carbs: 22.0, category: '主食', gi: 60 },
+            { id: 9, name: '燕麦片(冲)', icon: '🌾', calories: 68, protein: 2.5, fat: 1.4, carbs: 12.0, category: '主食', gi: 55 },
+            { id: 51, name: '红薯(蒸)', icon: '🍠', calories: 61, protein: 1.1, fat: 0.2, carbs: 15.3, category: '主食', gi: 54 },
+            { id: 101, name: '紫薯', icon: '🍠', calories: 106, protein: 1.5, fat: 0.2, carbs: 25.0, category: '主食', gi: 45 },
+            { id: 102, name: '糙米饭', icon: '🍚', calories: 111, protein: 2.6, fat: 0.9, carbs: 23.0, category: '主食', gi: 68 },
+            { id: 103, name: '凉皮', icon: '🥗', calories: 117, protein: 3.8, fat: 0.6, carbs: 25.0, category: '主食', gi: 60 },
+            { id: 104, name: '肉包子', icon: '🥯', calories: 227, protein: 7.5, fat: 8.0, carbs: 32.0, category: '主食', gi: 70 },
+            { id: 105, name: '花卷', icon: '🥯', calories: 210, protein: 6.5, fat: 1.0, carbs: 45.0, category: '主食', gi: 88 },
+            { id: 106, name: '馄饨', icon: '🥟', calories: 200, protein: 8.0, fat: 8.0, carbs: 25.0, category: '主食', gi: 60 },
+            { id: 107, name: '炒饭', icon: '🍛', calories: 180, protein: 5.0, fat: 6.0, carbs: 28.0, category: '主食', gi: 75 },
+            { id: 108, name: '山药', icon: '🥢', calories: 57, protein: 1.9, fat: 0.2, carbs: 12.4, category: '主食', gi: 51 },
+
+            // === 肉蛋奶 ===
+            { id: 10, name: '水煮蛋', icon: '🥚', calories: 155, protein: 13.0, fat: 11.0, carbs: 1.1, category: '肉蛋奶', gi: 0 },
+            { id: 11, name: '煎荷包蛋', icon: '🍳', calories: 198, protein: 13.0, fat: 15.0, carbs: 1.5, category: '肉蛋奶', gi: 0 },
+            { id: 12, name: '纯牛奶', icon: '🥛', calories: 54, protein: 3.0, fat: 3.2, carbs: 3.4, category: '肉蛋奶', gi: 27 },
+            { id: 13, name: '豆浆(无糖)', icon: '🥤', calories: 31, protein: 3.0, fat: 1.6, carbs: 1.2, category: '肉蛋奶', gi: 30 },
+            { id: 14, name: '北豆腐', icon: '🧊', calories: 116, protein: 12.2, fat: 4.8, carbs: 4.0, category: '肉蛋奶', gi: 25 },
+            { id: 15, name: '鸡胸肉', icon: '🥩', calories: 133, protein: 19.4, fat: 5.0, carbs: 2.5, category: '肉蛋奶', gi: 0 },
+            { id: 16, name: '猪瘦肉', icon: '🍖', calories: 143, protein: 20.3, fat: 6.2, carbs: 1.5, category: '肉蛋奶', gi: 0 },
+            { id: 17, name: '五花肉', icon: '🥓', calories: 349, protein: 13.2, fat: 30.6, carbs: 0.5, category: '肉蛋奶', gi: 0 },
+            { id: 18, name: '酱牛肉', icon: '🥩', calories: 150, protein: 28.0, fat: 4.0, carbs: 2.0, category: '肉蛋奶', gi: 0 },
+            { id: 19, name: '基围虾', icon: '🦐', calories: 93, protein: 18.0, fat: 1.1, carbs: 2.8, category: '肉蛋奶', gi: 0 },
+            { id: 20, name: '清蒸鱼', icon: '🐟', calories: 110, protein: 20.0, fat: 3.0, carbs: 0.0, category: '肉蛋奶', gi: 0 },
+            { id: 201, name: '三文鱼', icon: '🐟', calories: 139, protein: 19.8, fat: 6.3, carbs: 0.0, category: '肉蛋奶', gi: 0 },
+            { id: 202, name: '鸭肉', icon: '🍗', calories: 240, protein: 15.0, fat: 19.0, carbs: 0.0, category: '肉蛋奶', gi: 0 },
+            { id: 203, name: '羊肉卷', icon: '🥩', calories: 203, protein: 19.0, fat: 14.0, carbs: 0.0, category: '肉蛋奶', gi: 0 },
+            { id: 204, name: '酸奶(无糖)', icon: '🥛', calories: 65, protein: 3.5, fat: 3.0, carbs: 5.0, category: '肉蛋奶', gi: 35 },
+            { id: 205, name: '腐竹', icon: '🥢', calories: 459, protein: 44.0, fat: 21.0, carbs: 22.0, category: '肉蛋奶', gi: 30 },
+            { id: 206, name: '午餐肉', icon: '🍖', calories: 230, protein: 12.0, fat: 18.0, carbs: 5.0, category: '肉蛋奶', gi: 40 },
+            { id: 207, name: '鸡腿(带皮)', icon: '🍗', calories: 180, protein: 16.0, fat: 12.0, carbs: 0.0, category: '肉蛋奶', gi: 0 },
+
+            // === 蔬果 ===
+            { id: 21, name: '生菜', icon: '🥬', calories: 15, protein: 1.3, fat: 0.4, carbs: 2.1, category: '蔬果', gi: 15 },
+            { id: 22, name: '西兰花', icon: '🥦', calories: 34, protein: 4.1, fat: 0.6, carbs: 4.3, category: '蔬果', gi: 15 },
+            { id: 23, name: '番茄', icon: '🍅', calories: 18, protein: 0.9, fat: 0.2, carbs: 3.9, category: '蔬果', gi: 15 },
+            { id: 24, name: '黄瓜', icon: '🥒', calories: 16, protein: 0.8, fat: 0.2, carbs: 2.9, category: '蔬果', gi: 15 },
+            { id: 25, name: '胡萝卜', icon: '🥕', calories: 39, protein: 1.0, fat: 0.2, carbs: 8.8, category: '蔬果', gi: 71 },
+            { id: 26, name: '菠菜', icon: '🥬', calories: 23, protein: 2.6, fat: 0.3, carbs: 4.5, category: '蔬果', gi: 15 },
+            { id: 27, name: '香菇', icon: '🍄', calories: 26, protein: 2.2, fat: 0.3, carbs: 5.2, category: '蔬果', gi: 20 },
+            { id: 28, name: '苹果', icon: '🍎', calories: 53, protein: 0.4, fat: 0.2, carbs: 13.7, category: '蔬果', gi: 36 },
+            { id: 29, name: '香蕉', icon: '🍌', calories: 93, protein: 1.4, fat: 0.2, carbs: 22.0, category: '蔬果', gi: 52 },
+            { id: 30, name: '西瓜', icon: '🍉', calories: 31, protein: 0.6, fat: 0.1, carbs: 6.8, category: '蔬果', gi: 72 },
+            { id: 301, name: '橙子', icon: '🍊', calories: 47, protein: 0.8, fat: 0.2, carbs: 10.5, category: '蔬果', gi: 43 },
+            { id: 302, name: '葡萄', icon: '🍇', calories: 43, protein: 0.5, fat: 0.2, carbs: 10.0, category: '蔬果', gi: 50 },
+            { id: 303, name: '草莓', icon: '🍓', calories: 32, protein: 1.0, fat: 0.2, carbs: 7.0, category: '蔬果', gi: 40 },
+            { id: 304, name: '猕猴桃', icon: '🥝', calories: 61, protein: 1.1, fat: 0.6, carbs: 14.0, category: '蔬果', gi: 52 },
+            { id: 305, name: '火龙果', icon: '🐉', calories: 51, protein: 1.1, fat: 0.2, carbs: 13.0, category: '蔬果', gi: 50 },
+            { id: 306, name: '大白菜', icon: '🥬', calories: 18, protein: 1.5, fat: 0.1, carbs: 3.2, category: '蔬果', gi: 15 },
+            { id: 307, name: '茄子(油焖)', icon: '🍆', calories: 180, protein: 2.0, fat: 15.0, carbs: 8.0, category: '蔬果', gi: 40 },
+            { id: 308, name: '海带', icon: '🌿', calories: 13, protein: 1.2, fat: 0.1, carbs: 2.0, category: '蔬果', gi: 15 },
+            { id: 309, name: '木耳(水发)', icon: '🍄', calories: 27, protein: 1.5, fat: 0.2, carbs: 6.0, category: '蔬果', gi: 20 },
+
+            // === 菜肴/零食 ===
+            { id: 40, name: '番茄炒蛋', icon: '🥘', calories: 95, protein: 5.5, fat: 6.0, carbs: 4.5, category: '菜肴', gi: 45 },
+            { id: 41, name: '宫保鸡丁', icon: '🍲', calories: 170, protein: 12.0, fat: 11.0, carbs: 6.0, category: '菜肴', gi: 50 },
+            { id: 42, name: '麻婆豆腐', icon: '🥘', calories: 130, protein: 8.0, fat: 9.0, carbs: 4.0, category: '菜肴', gi: 45 },
+            { id: 43, name: '青椒炒肉', icon: '🍲', calories: 165, protein: 9.0, fat: 13.0, carbs: 3.0, category: '菜肴', gi: 50 },
+            { id: 44, name: '凉拌黄瓜', icon: '🥗', calories: 35, protein: 1.0, fat: 2.5, carbs: 3.0, category: '菜肴', gi: 30 },
+            { id: 401, name: '红烧肉', icon: '🥩', calories: 450, protein: 10.0, fat: 40.0, carbs: 5.0, category: '菜肴', gi: 50 },
+            { id: 402, name: '鱼香肉丝', icon: '🍲', calories: 140, protein: 8.0, fat: 10.0, carbs: 8.0, category: '菜肴', gi: 55 },
+            { id: 403, name: '酸辣土豆丝', icon: '🥔', calories: 120, protein: 2.0, fat: 6.0, carbs: 18.0, category: '菜肴', gi: 65 },
+            { id: 60, name: '可乐', icon: '🥤', calories: 43, protein: 0.0, fat: 0.0, carbs: 10.6, category: '零食', gi: 65 },
+            { id: 61, name: '薯片', icon: '🥔', calories: 548, protein: 7.5, fat: 37.6, carbs: 49.7, category: '零食', gi: 75 },
+            { id: 62, name: '奶茶(中糖)', icon: '🧋', calories: 70, protein: 1.0, fat: 3.0, carbs: 10.0, category: '零食', gi: 70 },
+            { id: 63, name: '黑巧克力', icon: '🍫', calories: 546, protein: 4.9, fat: 31.0, carbs: 61.0, category: '零食', gi: 23 },
+            { id: 64, name: '瓜子', icon: '🌻', calories: 600, protein: 24.0, fat: 50.0, carbs: 13.0, category: '零食', gi: 25 },
+            { id: 65, name: '核桃', icon: '🥜', calories: 654, protein: 15.0, fat: 65.0, carbs: 13.0, category: '零食', gi: 15 },
+            { id: 66, name: '冰淇淋', icon: '🍦', calories: 207, protein: 3.5, fat: 11.0, carbs: 24.0, category: '零食', gi: 60 },
+        ];
+
+        const generateMockHistory = () => {
+            const history = {};
+            const today = new Date();
+            for (let i = 0; i < 30; i++) {
+                const date = new Date(today);
+                date.setDate(today.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                const dailyItems = [];
+                const count = Math.floor(Math.random() * 4) + 2;
+                for(let j=0; j<count; j++){
+                    const food = initialFoodDatabase[Math.floor(Math.random() * initialFoodDatabase.length)];
+                    dailyItems.push({ ...food, weight: 100 + Math.floor(Math.random() * 200), cartId: Math.random() });
+                }
+                history[dateStr] = dailyItems;
+            }
+            return history;
+        };
+        
+        const getTodayStr = () => new Date().toISOString().split('T')[0];
+
+        // --- Main Component ---
+        function App() {
+            const [activeTab, setActiveTab] = useState('home');
+            const [customFoods, setCustomFoods] = useState(() => {
+                const saved = localStorage.getItem('cb_custom_foods');
+                return saved ? JSON.parse(saved) : [];
+            });
+            const [historyLogs, setHistoryLogs] = useState(() => {
+                const saved = localStorage.getItem('cb_history_logs');
+                return saved ? JSON.parse(saved) : generateMockHistory();
+            });
+            const [calorieTarget, setCalorieTarget] = useState(() => {
+                return Number(localStorage.getItem('cb_calorie_target')) || 2000;
+            });
+            const [userProfile, setUserProfile] = useState(() => {
+                const saved = localStorage.getItem('cb_profile');
+                return saved ? JSON.parse(saved) : { gender: 'male', age: 25, height: 175, weight: 70, activity: 1.2 };
+            });
+
+            const todayStr = getTodayStr();
+            const todayCart = historyLogs[todayStr] || [];
+
+            useEffect(() => localStorage.setItem('cb_custom_foods', JSON.stringify(customFoods)), [customFoods]);
+            useEffect(() => localStorage.setItem('cb_history_logs', JSON.stringify(historyLogs)), [historyLogs]);
+            useEffect(() => localStorage.setItem('cb_calorie_target', calorieTarget), [calorieTarget]);
+            useEffect(() => localStorage.setItem('cb_profile', JSON.stringify(userProfile)), [userProfile]);
+
+            const handleAddToCart = (food, weight) => {
+                const newItem = { ...food, weight: parseFloat(weight), cartId: Date.now() };
+                setHistoryLogs(prev => ({ ...prev, [todayStr]: [...(prev[todayStr] || []), newItem] }));
+            };
+            const handleRemoveFromCart = (cartId) => {
+                setHistoryLogs(prev => ({ ...prev, [todayStr]: prev[todayStr].filter(item => item.cartId !== cartId) }));
+            };
+            const handleCreateFood = (newFood) => setCustomFoods([newFood, ...customFoods]);
+            const updateBMR = (profile) => {
+                setUserProfile(profile);
+                let bmr = (profile.gender === 'male') ? (10*profile.weight + 6.25*profile.height - 5*profile.age + 5) : (10*profile.weight + 6.25*profile.height - 5*profile.age - 161);
+                const tdee = Math.round(bmr * profile.activity);
+                setCalorieTarget(tdee);
+                alert(`已更新每日预算为: ${tdee} kcal`);
+            };
+
+            const renderContent = () => {
+                switch (activeTab) {
+                    case 'home': return <HomeView allFoods={[...customFoods, ...initialFoodDatabase]} todayCart={todayCart} onAdd={handleAddToCart} onRemove={handleRemoveFromCart} onCreate={handleCreateFood} onGoToInsights={() => setActiveTab('insights')} />;
+                    case 'history': return <HistoryView historyLogs={historyLogs} />;
+                    case 'insights': return <InsightsView todayCart={todayCart} target={calorieTarget} setTarget={setCalorieTarget} />;
+                    case 'profile': return <ProfileView profile={userProfile} onUpdate={updateBMR} />;
+                    default: return null;
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-24">
+                    {renderContent()}
+                    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 z-50 pb-safe">
+                        <div className="max-w-md mx-auto flex justify-between items-center">
+                            <NavButton active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<Search size={24} />} label="查食物" />
+                            <NavButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={<Calendar size={24} />} label="记录" />
+                            <NavButton active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon={<PieChart size={24} />} label="洞察" />
+                            <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<User size={24} />} label="我的" />
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- Sub Components ---
+        function HomeView({ allFoods, todayCart, onAdd, onRemove, onCreate, onGoToInsights }) {
+            const [searchTerm, setSearchTerm] = useState('');
+            const [activeCategory, setActiveCategory] = useState('全部');
+            const [selectedFood, setSelectedFood] = useState(null);
+            const [showCreateModal, setShowCreateModal] = useState(false);
+            const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+            const categories = useMemo(() => {
+                const cats = new Set(allFoods.map(f => f.category));
+                const priority = ['主食', '菜肴', '肉蛋奶', '蔬果', '零食'];
+                const sortedCats = Array.from(cats).sort((a, b) => {
+                    const idxA = priority.indexOf(a);
+                    const idxB = priority.indexOf(b);
+                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                    if (idxA !== -1) return -1;
+                    if (idxB !== -1) return 1;
+                    return a.localeCompare(b, 'zh');
+                });
+                return ['全部', ...sortedCats];
+            }, [allFoods]);
+
+            const filteredFood = useMemo(() => {
+                return allFoods.filter(item => {
+                    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
+                    const matchesCategory = activeCategory === '全部' || item.category === activeCategory;
+                    return matchesSearch && matchesCategory;
+                });
+            }, [searchTerm, activeCategory, allFoods]);
+
+            const todayCalories = todayCart.reduce((sum, item) => sum + (item.calories * item.weight / 100), 0);
+
+            return (
+                <div className="max-w-md mx-auto">
+                    <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm shadow-sm border-b border-slate-100">
+                        <div className="px-4 py-3 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-9 h-9 bg-gradient-to-br from-green-400 to-green-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-green-200">
+                                    <Landmark size={20} fill="currentColor" strokeWidth={1.5} />
+                                </div>
+                                <div>
+                                    <h1 className="text-xl font-extrabold text-slate-900 tracking-tight leading-none">CalorieBank</h1>
+                                    <span className="text-[10px] text-slate-400 font-medium tracking-wide uppercase">Energy Management</span>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowCreateModal(true)} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100 active:scale-95 transition-transform"><Plus size={22} /></button>
+                        </div>
+                        <div className="px-4 pb-3 space-y-3">
+                            <div className="relative group">
+                                <div className="absolute left-3 top-2.5 h-5 w-5 text-slate-400 flex items-center justify-center pointer-events-none"><Search size={20}/></div>
+                                <input type="text" className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-100 focus:bg-white focus:ring-2 focus:ring-green-500/50 outline-none transition-all" placeholder="搜索食物..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}/>
+                            </div>
+                            <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+                                {categories.map(cat => (
+                                    <button key={cat} onClick={() => setActiveCategory(cat)} className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-all border ${activeCategory === cat ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200'}`}>{cat}</button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="p-4 pb-32 grid gap-3">
+                        {filteredFood.map(item => <FoodCard key={item.id} item={item} onAdd={() => setSelectedFood(item)} isCustom={item.id > 10000} />)}
+                        {filteredFood.length === 0 && <div className="text-center py-12 text-slate-400"><p>没有找到相关食物</p></div>}
+                    </div>
+                    {todayCart.length > 0 && (
+                        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 w-auto">
+                            <button onClick={() => setIsSheetOpen(true)} className="bg-slate-900 text-white rounded-full pl-5 pr-6 py-3 shadow-xl shadow-slate-900/20 flex items-center gap-3 hover:scale-105 active:scale-95 transition-all">
+                                <div className="relative"><ShoppingBag size={20} /><span className="absolute -top-1.5 -right-1.5 bg-red-500 text-[9px] w-4 h-4 flex items-center justify-center rounded-full border border-slate-900">{todayCart.length}</span></div>
+                                <div className="flex flex-col items-start leading-none"><span className="text-[10px] text-slate-300 font-medium mb-0.5">今日摄入</span><span className="font-bold text-sm">{Math.round(todayCalories)} kcal</span></div>
+                            </button>
+                        </div>
+                    )}
+                    {selectedFood && <WeightCalculatorModal food={selectedFood} onClose={() => setSelectedFood(null)} onConfirm={(f, w) => { onAdd(f, w); setSelectedFood(null); }} />}
+                    {showCreateModal && <CreateFoodModal existingCategories={categories.filter(c => c !== '全部')} onClose={() => setShowCreateModal(false)} onSave={(f) => { onCreate(f); setShowCreateModal(false); }} />}
+                    {isSheetOpen && <DailySummarySheet cart={todayCart} onClose={() => setIsSheetOpen(false)} onRemove={onRemove} onGoToInsights={onGoToInsights} />}
+                </div>
+            );
+        }
+
+        function ProfileView({ profile, onUpdate }) {
+            const [form, setForm] = useState(profile);
+            const calculatePreview = () => {
+                let bmr = (form.gender === 'male') ? (10 * form.weight + 6.25 * form.height - 5 * form.age + 5) : (10 * form.weight + 6.25 * form.height - 5 * form.age - 161);
+                return Math.round(bmr * form.activity);
+            };
+            return (
+                <div className="max-w-md mx-auto p-6 pt-10 min-h-screen bg-white">
+                    <h2 className="text-2xl font-bold mb-2 flex items-center gap-2"><User className="text-slate-900" /> 个人档案</h2>
+                    <p className="text-sm text-slate-500 mb-8">完善身体数据，获取精准的代谢预算。</p>
+                    <div className="space-y-6">
+                        <div><label className="block text-sm font-bold text-slate-700 mb-2">性别</label><div className="flex gap-4"><button onClick={() => setForm({...form, gender: 'male'})} className={`flex-1 py-3 rounded-xl border-2 font-bold transition-colors ${form.gender === 'male' ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-slate-100 text-slate-400'}`}>我是男生</button><button onClick={() => setForm({...form, gender: 'female'})} className={`flex-1 py-3 rounded-xl border-2 font-bold transition-colors ${form.gender === 'female' ? 'border-pink-500 bg-pink-50 text-pink-600' : 'border-slate-100 text-slate-400'}`}>我是女生</button></div></div>
+                        <div className="grid grid-cols-3 gap-4">
+                            <div><label className="block text-xs font-bold text-slate-500 mb-2">年龄 (岁)</label><div className="relative"><div className="absolute left-3 top-3 text-slate-300 pointer-events-none"><Settings size={16}/></div><input type="number" className="w-full pl-9 py-2.5 bg-slate-50 rounded-xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20" value={form.age} onChange={e => setForm({...form, age: Number(e.target.value)})}/></div></div>
+                            <div><label className="block text-xs font-bold text-slate-500 mb-2">身高 (cm)</label><div className="relative"><div className="absolute left-3 top-3 text-slate-300 pointer-events-none"><Ruler size={16}/></div><input type="number" className="w-full pl-9 py-2.5 bg-slate-50 rounded-xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20" value={form.height} onChange={e => setForm({...form, height: Number(e.target.value)})}/></div></div>
+                            <div><label className="block text-xs font-bold text-slate-500 mb-2">体重 (kg)</label><div className="relative"><div className="absolute left-3 top-3 text-slate-300 pointer-events-none"><Weight size={16}/></div><input type="number" className="w-full pl-9 py-2.5 bg-slate-50 rounded-xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20" value={form.weight} onChange={e => setForm({...form, weight: Number(e.target.value)})}/></div></div>
+                        </div>
+                        <div><label className="block text-sm font-bold text-slate-700 mb-2">日常活动强度</label><select className="w-full p-3 bg-slate-50 rounded-xl text-sm text-slate-700 outline-none border border-slate-100" value={form.activity} onChange={(e) => setForm({...form, activity: parseFloat(e.target.value)})}>
+                            <option value={1.2}>久坐不动 (办公室工作)</option><option value={1.375}>轻度活动 (每周运动1-3次)</option><option value={1.55}>中度活动 (每周运动3-5次)</option><option value={1.725}>高度活动 (每周运动6-7次)</option>
+                        </select></div>
+                        <div className="pt-6"><div className="bg-green-50 p-4 rounded-xl flex justify-between items-center mb-4"><span className="text-sm text-green-700 font-medium">估算每日消耗 (TDEE)</span><span className="text-xl font-bold text-green-700">{calculatePreview()} kcal</span></div><button onClick={() => onUpdate(form)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold shadow-lg shadow-slate-300 active:scale-[0.99] transition-all flex items-center justify-center gap-2"><Save size={18} /> 保存并应用到预算</button></div>
+                    </div>
+                </div>
+            );
+        }
+
+        function HistoryView({ historyLogs }) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const [dateRange, setDateRange] = useState(7);
+            const trendData = useMemo(() => {
+                const daysToShow = []; let totalCal = 0; let dataCount = 0;
+                for (let i = dateRange - 1; i >= 0; i--) {
+                    const d = new Date(); d.setDate(d.getDate() - i); const dStr = d.toISOString().split('T')[0];
+                    const dayLog = historyLogs[dStr] || []; const dayCal = dayLog.reduce((acc, item) => acc + (item.calories * item.weight / 100), 0);
+                    const label = dateRange <= 15 ? dStr.slice(5) : (i % Math.ceil(dateRange/7) === 0 ? dStr.slice(5) : '');
+                    daysToShow.push({ date: dStr, label, cal: dayCal }); if (dayCal > 0) { totalCal += dayCal; dataCount++; }
+                }
+                return { days: daysToShow, avg: dataCount > 0 ? totalCal / dataCount : 0 };
+            }, [historyLogs, dateRange]);
+            const [selectedDate, setSelectedDate] = useState(todayStr);
+            const currentLog = historyLogs[selectedDate] || [];
+            return (
+                <div className="max-w-md mx-auto p-4 pt-6 min-h-screen bg-slate-50">
+                    <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold flex items-center gap-2"><Activity className="text-purple-500" /> 历史趋势</h2><div className="flex bg-white rounded-lg p-0.5 border border-slate-100 shadow-sm">{[7, 15, 30].map(range => <button key={range} onClick={() => setDateRange(range)} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${dateRange === range ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>{range}天</button>)}<button onClick={() => setDateRange(365)} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${dateRange === 365 ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>1年</button></div></div>
+                    <div className="bg-white p-4 rounded-2xl shadow-sm mb-6"><div className="flex justify-between items-baseline mb-4"><h3 className="text-sm font-bold text-slate-600">热量摄入趋势</h3><span className="text-xs text-slate-400">平均: {Math.round(trendData.avg)} kcal</span></div><div className="h-40 flex items-end justify-between gap-1">{trendData.days.map((day, idx) => { const heightPct = Math.min(100, (day.cal / 3000) * 100); const isToday = day.date === todayStr; return <div key={day.date} className="flex flex-col items-center flex-1 group relative h-full justify-end"><div className={`w-full min-w-[2px] max-w-[16px] rounded-t-sm transition-all ${isToday ? 'bg-purple-500' : 'bg-purple-200 group-hover:bg-purple-300'}`} style={{ height: `${Math.max(2, heightPct)}%` }}></div><div className="text-[8px] text-slate-300 mt-1 h-3 overflow-visible whitespace-nowrap">{day.label}</div></div> })}</div></div>
+                    <div className="flex items-center justify-between bg-white p-2 rounded-xl mb-4 shadow-sm">
+                        <button onClick={()=>{ const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d.toISOString().split('T')[0]) }} className="p-2 hover:bg-slate-100 rounded-lg"><ChevronLeft size={20} className="text-slate-400"/></button>
+                        <div className="font-bold text-slate-700 flex items-center gap-2 text-sm"><Calendar size={16} />{selectedDate === todayStr ? '今天' : selectedDate}</div>
+                        <button onClick={()=>{ const d = new Date(selectedDate); if(selectedDate !== todayStr) { d.setDate(d.getDate()+1); setSelectedDate(d.toISOString().split('T')[0]) } }} className={`p-2 rounded-lg ${selectedDate===todayStr ? 'opacity-30' : 'hover:bg-slate-100'}`} disabled={selectedDate===todayStr}><ChevronRight size={20} className="text-slate-400"/></button>
+                    </div>
+                    {currentLog.length === 0 ? <div className="text-center py-12 text-slate-400"><p>无记录</p></div> : <div className="space-y-3">{currentLog.map(item => <div key={item.cartId} className="bg-white p-3 rounded-xl flex items-center gap-3 border border-slate-100"><div className="text-xl">{item.icon}</div><div className="flex-1"><div className="flex justify-between mb-1"><span className="font-bold text-sm text-slate-700">{item.name}</span><span className="text-xs font-bold text-slate-500">{item.weight}g</span></div><div className="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-green-500" style={{ width: `${Math.min(100, item.weight/5)}%` }}></div></div></div></div>)}</div>}
+                </div>
+            );
+        }
+
+        function InsightsView({ todayCart, target, setTarget }) {
+            const totalStats = todayCart.reduce((acc, item) => { const r = item.weight / 100; return { calories: acc.calories + item.calories * r, protein: acc.protein + item.protein * r, fat: acc.fat + item.fat * r, carbs: acc.carbs + item.carbs * r, }; }, { calories: 0, protein: 0, fat: 0, carbs: 0 });
+            const remaining = target - totalStats.calories; const percent = Math.min(100, (totalStats.calories / target) * 100); const isOver = remaining < 0;
+            return (
+                <div className="max-w-md mx-auto p-6 pt-12 min-h-screen bg-white">
+                    <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><Target className="text-green-500" /> 热量银行</h2>
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-8"><div className="flex justify-between items-center mb-2"><label className="text-sm font-bold text-slate-500">每日预算 (kcal)</label></div><input type="number" value={target} onChange={(e) => setTarget(Number(e.target.value))} className="text-3xl font-bold bg-transparent outline-none w-full text-slate-800"/></div>
+                    <div className="relative mb-8"><div className="flex justify-between items-end mb-2"><div><div className="text-sm text-slate-400 mb-1">今日已消耗</div><div className={`text-4xl font-bold ${isOver ? 'text-red-500' : 'text-slate-800'}`}>{Math.round(totalStats.calories)}</div></div><div className="text-right"><div className="text-sm text-slate-400 mb-1">{isOver ? '已超支' : '剩余可用'}</div><div className={`text-xl font-bold ${isOver ? 'text-red-500' : 'text-green-500'}`}>{isOver ? Math.abs(Math.round(remaining)) : Math.round(remaining)}<span className="text-xs text-slate-400 ml-1">kcal</span></div></div></div><div className="h-6 bg-slate-100 rounded-full overflow-hidden relative"><div className={`h-full transition-all duration-500 ease-out ${isOver ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${percent}%` }}></div></div></div>
+                    <div className="grid grid-cols-3 gap-4"><InsightCard label="蛋白质" current={totalStats.protein} target={target * 0.2 / 4} color="bg-blue-500" textColor="text-blue-600"/><InsightCard label="脂肪" current={totalStats.fat} target={target * 0.3 / 9} color="bg-yellow-500" textColor="text-yellow-600"/><InsightCard label="碳水" current={totalStats.carbs} target={target * 0.5 / 4} color="bg-orange-500" textColor="text-orange-600"/></div>
+                </div>
+            );
+        }
+
+        // --- Helpers ---
+        function NavButton({ active, onClick, icon, label }) { return <button onClick={onClick} className={`flex flex-col items-center justify-center w-16 transition-colors ${active ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}><div className={`mb-1 ${active ? 'scale-110 transition-transform' : ''}`}>{icon}</div><span className="text-[10px] font-medium">{label}</span></button>; }
+        function FoodCard({ item, onAdd, isCustom }) { const getGIColor = (gi) => { if (gi === undefined || gi === 0) return 'bg-slate-100 text-slate-400'; if (gi <= 55) return 'bg-green-100 text-green-700'; if (gi <= 69) return 'bg-yellow-100 text-yellow-700'; return 'bg-red-100 text-red-700'; }; return <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3 relative overflow-hidden group active:scale-[0.99] transition-transform">{isCustom && <div className="absolute top-0 right-0 w-3 h-3 bg-blue-500 rounded-bl-lg z-10" />}<div className="w-12 h-12 flex items-center justify-center bg-slate-50 rounded-xl text-2xl shrink-0">{item.icon}</div><div className="flex-1 min-w-0"><div className="flex justify-between items-center pr-2"><h3 className="font-bold text-slate-800 truncate">{item.name}</h3><div className="flex gap-1.5">{item.gi > 0 && <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${getGIColor(item.gi)}`}>GI:{item.gi}</div>}<div className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">{item.calories} kcal/100g</div></div></div><div className="flex items-center gap-3 mt-1.5"><NutrientLabel label="蛋白质" val={item.protein} color="text-blue-500" /><NutrientLabel label="脂肪" val={item.fat} color="text-yellow-500" /><NutrientLabel label="碳水" val={item.carbs} color="text-orange-500" /></div></div><button onClick={(e) => { e.stopPropagation(); onAdd(); }} className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center hover:bg-green-600 transition-colors z-10 shadow-md shadow-slate-200"><Plus size={18} /></button></div>; }
+        const NutrientLabel = ({ label, val, color }) => <div className="flex items-baseline gap-1"><span className={`text-[10px] ${color.replace('text-', 'text-opacity-80 ')}`}>{label}</span><span className="text-xs font-bold text-slate-600">{val}</span></div>;
+        function InsightCard({ label, current, target, color, textColor }) { const pct = Math.min(100, (current / target) * 100); return <div className="bg-slate-50 rounded-xl p-3 border border-slate-100"><div className="text-xs text-slate-500 mb-1">{label}</div><div className={`text-lg font-bold mb-2 ${textColor}`}>{current.toFixed(1)}g</div><div className="h-1.5 bg-slate-200 rounded-full overflow-hidden"><div className={`h-full ${color}`} style={{ width: `${pct}%` }}></div></div></div>; }
+        function WeightCalculatorModal({ food, onClose, onConfirm }) { const [weight, setWeight] = useState(100); const presets = [50, 100, 150, 200, 300]; const totalCal = Math.round(food.calories * weight / 100); return <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in"><div className="bg-white w-full max-w-md rounded-t-3xl p-6 animate-in slide-in-from-bottom-10"><div className="flex justify-between items-center mb-6"><div className="flex items-center gap-3"><span className="text-4xl">{food.icon}</span><div><h3 className="text-xl font-bold">{food.name}</h3><p className="text-xs text-slate-400">基础: {food.calories}kcal/100g</p></div></div><button onClick={onClose}><X className="text-slate-400"/></button></div><div className="bg-slate-50 rounded-2xl p-4 mb-6 border border-slate-100 flex items-center justify-between"><input type="number" value={weight} onChange={e=>setWeight(Number(e.target.value))} className="bg-transparent text-4xl font-bold w-32 outline-none"/><div className="text-right"><div className="text-2xl font-bold text-green-600">{totalCal}</div><div className="text-xs text-slate-400">kcal</div></div></div><div className="flex gap-2 overflow-x-auto pb-4">{presets.map(p=><button key={p} onClick={()=>setWeight(p)} className="px-4 py-2 rounded-lg bg-slate-100 font-medium text-slate-600">{p}g</button>)}</div><button onClick={()=>onConfirm(food, weight)} className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold text-lg">确认添加</button></div></div>; }
+        function CreateFoodModal({ existingCategories, onClose, onSave }) { const [form, setForm] = useState({ name: '', category: '', calories: '', protein: '', fat: '', carbs: '', icon: '🥘', gi: 50 }); return <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"><div className="bg-white w-full max-w-md rounded-t-3xl p-6 h-[80vh] overflow-y-auto"><div className="flex justify-between mb-6"><h3 className="text-xl font-bold">自定义食物</h3><button onClick={onClose}><X/></button></div><div className="space-y-4"><div><label className="text-xs font-bold text-slate-400">名称</label><input className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200" value={form.name} onChange={e=>setForm({...form, name: e.target.value})}/></div><div><label className="text-xs font-bold text-slate-400">热量 (kcal/100g)</label><input type="number" className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200" value={form.calories} onChange={e=>setForm({...form, calories: e.target.value})}/></div><div className="grid grid-cols-2 gap-4"><div><label className="text-xs font-bold text-slate-400">分类</label><input list="cats" className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200" value={form.category} onChange={e=>setForm({...form, category: e.target.value})}/><datalist id="cats">{existingCategories.map(c=><option key={c} value={c}/>)}</datalist></div><div><label className="text-xs font-bold text-slate-400">升糖指数 (GI)</label><input type="number" className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200" value={form.gi} onChange={e=>setForm({...form, gi: e.target.value})}/></div></div><button onClick={()=>{ if(form.name && form.calories) onSave({...form, id: Date.now(), calories: Number(form.calories), protein: Number(form.protein), fat: Number(form.fat), carbs: Number(form.carbs) }); }} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold mt-4">保存</button></div></div></div>; }
+        function DailySummarySheet({ cart, onClose, onRemove, onGoToInsights }) { const total = cart.reduce((sum, item) => sum + (item.calories * item.weight/100), 0); return <div className="fixed inset-0 z-[60] flex items-end justify-center pointer-events-none"><div className="absolute inset-0 bg-black/20 pointer-events-auto" onClick={onClose}></div><div className="bg-white w-full max-w-md rounded-t-3xl shadow-2xl pointer-events-auto max-h-[70vh] flex flex-col animate-in slide-in-from-bottom-full"><div className="p-6 border-b border-slate-100 flex justify-between items-center"><div><h2 className="text-xl font-bold">今日餐盘</h2><p className="text-xs text-slate-400">总摄入 {Math.round(total)} kcal</p></div><button onClick={() => { onClose(); onGoToInsights(); }} className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg active:bg-blue-100">查看洞察</button></div><div className="flex-1 overflow-y-auto p-4 space-y-2">{cart.map(item => <div key={item.cartId} className="flex justify-between items-center p-3 border border-slate-100 rounded-xl"><div className="flex items-center gap-3"><span className="text-2xl">{item.icon}</span><div><div className="font-bold">{item.name}</div><div className="text-xs text-slate-400">{item.weight}g</div></div></div><button onClick={()=>onRemove(item.cartId)} className="p-2 text-red-400"><Trash2 size={18}/></button></div>)}</div></div></div>; }
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
